@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>웹사이트 임베드 패널</title>
+  <title>Iframe 미리보기 & 조작 패널</title>
   <style>
     * {
       box-sizing: border-box;
@@ -13,106 +13,68 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      display: flex;
       height: 100vh;
-      background-color: #f4f6f9;
-      color: #333;
+      display: flex;
+      background-color: #f4f6f8;
+      overflow: hidden;
     }
 
-    /* 왼쪽 입력 컨트롤 패널 */
+    /* -----------------------------------
+       왼쪽 영역: Iframe 및 URL 입력창
+    ----------------------------------- */
     .left-panel {
-      width: 320px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #e1e4e8;
       background-color: #ffffff;
-      border-right: 1px solid #e0e0e0;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      box-shadow: 2px 0 8px rgba(0,0,0,0.05);
-      z-index: 10;
     }
 
-    .panel-title {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #2c3e50;
-      border-bottom: 2px solid #3498db;
-      padding-bottom: 8px;
-    }
-
-    .input-group {
+    .url-bar-container {
+      padding: 12px 16px;
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #e1e4e8;
       display: flex;
-      flex-direction: column;
       gap: 8px;
+      align-items: center;
     }
 
-    label {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #555;
-    }
-
-    input[type="url"] {
-      padding: 10px 12px;
-      border: 1px solid #ccc;
+    .url-input {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 14px;
+      border: 1px solid #ced4da;
       border-radius: 6px;
-      font-size: 0.9rem;
       outline: none;
       transition: border-color 0.2s;
     }
 
-    input[type="url"]:focus {
-      border-color: #3498db;
+    .url-input:focus {
+      border-color: #0969da;
     }
 
     .btn {
-      padding: 10px 15px;
-      background-color: #3498db;
-      color: white;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #ffffff;
+      background-color: #0969da;
       border: none;
       border-radius: 6px;
-      font-size: 0.9rem;
-      font-weight: 600;
       cursor: pointer;
       transition: background-color 0.2s;
     }
 
     .btn:hover {
-      background-color: #2980b9;
+      background-color: #0858b9;
     }
 
-    .btn-secondary {
-      background-color: #ecf0f1;
-      color: #333;
-      border: 1px solid #bdc3c7;
-    }
-
-    .btn-secondary:hover {
-      background-color: #bdc3c7;
-    }
-
-    .preset-links {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .notice-box {
-      font-size: 0.82rem;
-      background-color: #fff8e1;
-      border-left: 4px solid #ffc107;
-      padding: 10px;
-      color: #665c33;
-      line-height: 1.4;
-      border-radius: 0 4px 4px 0;
-    }
-
-    /* 오른쪽 메인 사이트 표시 패널 */
-    .right-panel {
+    .iframe-wrapper {
       flex: 1;
+      width: 100%;
       height: 100%;
-      background-color: #ffffff;
       position: relative;
+      background-color: #ffffff;
     }
 
     iframe {
@@ -121,84 +83,143 @@
       border: none;
     }
 
-    /* 초기 빈 패널 안내 메시지 */
-    .empty-state {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      color: #888;
-      pointer-events: none;
+    /* -----------------------------------
+       오른쪽 영역: 조작 패널
+    ----------------------------------- */
+    .right-panel {
+      width: 320px;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 20px;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.03);
     }
 
-    .empty-state h3 {
-      font-size: 1.2rem;
-      margin-bottom: 8px;
+    .panel-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #24292f;
+      border-bottom: 2px solid #f0f2f5;
+      padding-bottom: 10px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #57606a;
+    }
+
+    .btn-secondary {
+      padding: 8px 12px;
+      font-size: 13px;
+      background-color: #f6f8fa;
+      color: #24292f;
+      border: 1px solid rgba(27, 31, 36, 0.15);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background-color: #f3f4f6;
+    }
+
+    .notice-box {
+      font-size: 12px;
+      color: #6e7781;
+      background-color: #fff8c5;
+      border: 1px solid rgba(212, 167, 44, 0.4);
+      padding: 10px;
+      border-radius: 6px;
+      line-height: 1.4;
     }
   </style>
 </head>
 <body>
 
-  <!-- 왼쪽 컨트롤 패널 -->
+  <!-- 왼쪽: 주소 입력창 + iframe -->
   <div class="left-panel">
-    <div class="panel-title">웹사이트 연결</div>
-
-    <div class="input-group">
-      <label for="site-url">웹사이트 주소 (URL)</label>
-      <input type="url" id="site-url" placeholder="https://example.com" value="https://wikipedia.org">
-      <button class="btn" onclick="loadSite()">사이트 열기</button>
+    <div class="url-bar-container">
+      <input 
+        type="text" 
+        id="urlInput" 
+        class="url-input" 
+        placeholder="https://example.com 형식으로 입력하세요" 
+        value="https://example.com"
+      >
+      <button class="btn" onclick="loadUrl()">이동</button>
     </div>
-
-    <div class="input-group">
-      <label>테스트 사이트 목록</label>
-      <div class="preset-links">
-        <button class="btn btn-secondary" onclick="setAndLoad('https://wikipedia.org')">위키백과</button>
-        <button class="btn btn-secondary" onclick="setAndLoad('https://bing.com')">Bing</button>
-      </div>
-    </div>
-
-    <div class="notice-box">
-      <strong>⚠️ 참고사항:</strong><br>
-      네이버, 구글, 다음 등 보안 방침(X-Frame-Options)이 강한 사이트는 패널 내에 표시되지 않을 수 있습니다.
+    <div class="iframe-wrapper">
+      <iframe id="siteIframe" src="https://example.com"></iframe>
     </div>
   </div>
 
-  <!-- 오른쪽 화면 패널 -->
+  <!-- 오른쪽: 조작 패널 -->
   <div class="right-panel">
-    <div class="empty-state" id="empty-msg">
-      <h3>우측 패널입니다.</h3>
-      <p>왼쪽에서 URL을 입력하고 '사이트 열기'를 눌러주세요.</p>
+    <h2 class="panel-title">조작 패널</h2>
+
+    <!-- 컨트롤 항목 예시 1: 새로고침 -->
+    <div class="control-group">
+      <span class="control-label">화면 제어</span>
+      <button class="btn-secondary" onclick="reloadIframe()">iframe 새로고침</button>
     </div>
-    <iframe id="content-frame" src="about:blank"></iframe>
+
+    <!-- 컨트롤 항목 예시 2: 너비 조절 -->
+    <div class="control-group">
+      <span class="control-label">미리보기 해상도</span>
+      <button class="btn-secondary" onclick="setIframeWidth('100%')">전체 너비 (100%)</button>
+      <button class="btn-secondary" onclick="setIframeWidth('375px')">모바일 크기 (375px)</button>
+    </div>
+
+    <!-- 안내 사항 -->
+    <div class="notice-box">
+      ⚠️ <strong>참고:</strong> Google, Naver 등 일부 사이트는 보안 정책(X-Frame-Options)으로 인해 iframe 내부 표출이 블록될 수 있습니다. 본인이 제작한 웹사이트나 오픈된 URL 테스트용으로 적합합니다.
+    </div>
   </div>
 
   <script>
-    function loadSite() {
-      const urlInput = document.getElementById('site-url').value.trim();
-      const iframe = document.getElementById('content-frame');
-      const emptyMsg = document.getElementById('empty-msg');
+    // URL 이동 함수
+    function loadUrl() {
+      const input = document.getElementById('urlInput');
+      let url = input.value.trim();
 
-      if (!urlInput) {
-        alert('URL을 입력해주세요.');
-        return;
+      if (!url) return;
+
+      // http:// 나 https:// 가 없으면 자동으로 붙여줌
+      if (!/^https?:\/\//i.test(url)) {
+        url = 'https://' + url;
+        input.value = url;
       }
 
-      let finalUrl = urlInput;
-      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-        finalUrl = 'https://' + finalUrl;
-        document.getElementById('site-url').value = finalUrl;
-      }
-
-      emptyMsg.style.display = 'none';
-      iframe.src = finalUrl;
+      document.getElementById('siteIframe').src = url;
     }
 
-    function setAndLoad(url) {
-      document.getElementById('site-url').value = url;
-      loadSite();
+    // 엔터키 입력 시 이동 처리
+    document.getElementById('urlInput').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        loadUrl();
+      }
+    });
+
+    // iframe 새로고침
+    function reloadIframe() {
+      const iframe = document.getElementById('siteIframe');
+      iframe.src = iframe.src;
+    }
+
+    // iframe 너비 변경 예시
+    function setIframeWidth(width) {
+      const iframe = document.getElementById('siteIframe');
+      iframe.style.width = width;
+      iframe.style.margin = width === '100%' ? '0' : '0 auto';
     }
   </script>
-
 </body>
 </html>
