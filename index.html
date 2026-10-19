@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iframe 오토마우스 & 스크롤 매크로</title>
+  <title>Iframe 오토마우스 & 방향키 제어 매크로</title>
   <style>
     * {
       box-sizing: border-box;
@@ -80,21 +80,7 @@
       border: none;
     }
 
-    /* 드래그 시 iframe 마우스 차단 오버레이 */
-    .drag-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 9999;
-      display: none;
-    }
-    body.is-dragging .drag-overlay {
-      display: block;
-    }
-
-    /* 드래그 가능한 클릭 타겟 아이콘 */
+    /* 클릭 타겟 아이콘 */
     .target-pin {
       position: absolute;
       width: 20px;
@@ -109,13 +95,13 @@
       font-weight: bold;
       font-size: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-      cursor: grab;
       z-index: 10000;
       transform: translate(-50%, -50%);
     }
 
-    .target-pin:active {
-      cursor: grabbing;
+    .target-pin.selected {
+      background-color: #0969da;
+      box-shadow: 0 0 0 4px rgba(9, 105, 218, 0.4);
     }
 
     .target-pin.active-highlight {
@@ -145,9 +131,6 @@
 
     .resizer:hover, body.is-resizing .resizer {
       background-color: #0969da;
-    }
-    .resizer:hover::after, body.is-resizing .resizer::after {
-      color: white;
     }
 
     /* -----------------------------------
@@ -202,11 +185,44 @@
       border-radius: 4px;
     }
 
+    /* 방향키 패널 디자인 */
+    .dpad-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background-color: #f6f8fa;
+      padding: 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+    }
+
+    .dpad-row {
+      display: flex;
+      gap: 4px;
+    }
+
+    .btn-dpad {
+      width: 36px;
+      height: 32px;
+      font-size: 14px;
+      font-weight: bold;
+      background-color: #ffffff;
+      border: 1px solid #d0d7de;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-dpad:hover {
+      background-color: #f3f4f6;
+      border-color: #0969da;
+    }
+
     .step-list {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-height: 180px;
+      max-height: 160px;
       overflow-y: auto;
       border: 1px solid #e1e4e8;
       border-radius: 6px;
@@ -223,11 +239,12 @@
       border: 1px solid #d0d7de;
       border-radius: 5px;
       font-size: 12px;
+      cursor: pointer;
     }
 
-    .step-item.executing {
-      border-color: #2ea44f;
-      background-color: #dafbe1;
+    .step-item.selected-step {
+      border-color: #0969da;
+      background-color: #ddf4ff;
     }
 
     .step-number {
@@ -275,7 +292,7 @@
       color: #00ff66;
       padding: 8px;
       border-radius: 6px;
-      height: 90px;
+      height: 80px;
       overflow-y: auto;
       white-space: pre-wrap;
     }
@@ -300,22 +317,21 @@
       <button class="btn" onclick="loadUrl()">이동</button>
     </div>
     <div class="iframe-wrapper" id="iframeWrapper">
-      <div class="drag-overlay" id="dragOverlay"></div>
       <iframe id="siteIframe" src="https://example.com"></iframe>
     </div>
   </div>
 
-  <!-- 좌우 경계선 (패널 크기 조절용) -->
+  <!-- 경계선 리사이저 -->
   <div class="resizer" id="resizer"></div>
 
   <!-- 오른쪽: 조작 패널 -->
   <div class="right-panel" id="rightPanel">
     <h2 class="panel-title">매크로 조작 패널</h2>
 
-    <!-- 액션 추가 버튼 -->
+    <!-- 액션 추가 -->
     <div class="control-group">
       <div class="section-title">액션 추가</div>
-      <button class="btn-sm" style="width:100%; margin-bottom: 4px;" onclick="addClickPin()">🎯 클릭 타겟 아이콘 추가</button>
+      <button class="btn-sm" style="width:100%; margin-bottom: 4px;" onclick="addClickPin()">🎯 클릭 타겟 추가</button>
       
       <div class="input-group">
         <input type="number" id="scrollDistance" class="input-field" value="300" placeholder="스크롤 px">
@@ -324,16 +340,33 @@
       </div>
     </div>
 
+    <!-- 방향키 위치 미세조정 패널 -->
+    <div class="control-group">
+      <div class="section-title">선택한 핀 위치 미세조정 (2px씩)</div>
+      <div class="dpad-container">
+        <div class="dpad-row">
+          <button class="btn-dpad" onclick="movePin(0, -2)">▲</button>
+        </div>
+        <div class="dpad-row">
+          <button class="btn-dpad" onclick="movePin(-2, 0)">◀</button>
+          <button class="btn-dpad" onclick="movePin(2, 0)">▶</button>
+        </div>
+        <div class="dpad-row">
+          <button class="btn-dpad" onclick="movePin(0, 2)">▼</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 시나리오 단계 목록 -->
     <div class="control-group">
       <div class="section-title">
-        <span>시나리오 순서</span>
+        <span>시나리오 순서 (클릭하여 선택)</span>
         <button class="btn-sm" onclick="clearSteps()">전체 삭제</button>
       </div>
       <div id="stepList" class="step-list"></div>
     </div>
 
-    <!-- 반복 및 대기 설정 -->
+    <!-- 반복 설정 -->
     <div class="control-group">
       <div class="section-title">반복 설정</div>
       <div class="input-group">
@@ -361,17 +394,17 @@
     </div>
 
     <div class="notice-box">
-      💡 <b>팁:</b> 타겟 핀을 잡고 드래그하거나, 가운데 경계선(||)을 잡고 끌면 크기가 자유롭게 조절됩니다.
+      💡 <b>사용법:</b> 핀을 추가한 뒤 시나리오 목록에서 해당 핀을 클릭해 선택하고, 방향키(▲▼◀▶)를 눌러 2픽셀씩 정확하게 위치를 맞추세요!
     </div>
   </div>
 
   <script>
     let steps = [];           
     let pinCounter = 0;       
+    let selectedStepIndex = null; // 현재 선택된 스텝 인덱스
     let isRunning = false;     
     let currentLoop = 0;      
 
-    // URL 이동
     function loadUrl() {
       const input = document.getElementById('urlInput');
       let url = input.value.trim();
@@ -402,58 +435,44 @@
       pin.style.top = '100px';
       wrapper.appendChild(pin);
 
-      enablePinDrag(pin);
-
+      const newIndex = steps.length;
       steps.push({
         id: pinId,
         type: 'click',
         name: `🎯 클릭 (핀 #${pinCounter})`,
-        getCoords: () => {
-          return {
-            x: parseInt(pin.style.left),
-            y: parseInt(pin.style.top)
-          };
+        x: 100,
+        y: 100,
+        getCoords: function() {
+          return { x: this.x, y: this.y };
         }
       });
 
       renderSteps();
-      addLog(`핀 #${pinCounter} 생성됨`);
+      selectStep(newIndex);
+      addLog(`핀 #${pinCounter} 생성됨 (기본 위치: 100, 100)`);
     }
 
-    // 완벽하게 동작하는 핀 드래그 로직 (오버레이 적용)
-    function enablePinDrag(element) {
-      let isDragging = false;
+    // 방향키로 2픽셀씩 위치 이동
+    function movePin(dx, dy) {
+      if (selectedStepIndex === null || steps[selectedStepIndex].type !== 'click') {
+        alert('미세조정할 클릭 핀 단계를 시나리오 목록에서 먼저 선택해 주세요!');
+        return;
+      }
 
-      element.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        document.body.classList.add('is-dragging');
-        e.stopPropagation();
-      });
+      const step = steps[selectedStepIndex];
+      step.x = Math.max(5, step.x + dx);
+      step.y = Math.max(5, step.y + dy);
 
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const wrapper = document.getElementById('iframeWrapper');
-        const rect = wrapper.getBoundingClientRect();
+      const pinEl = document.getElementById(step.id);
+      if (pinEl) {
+        pinEl.style.left = step.x + 'px';
+        pinEl.style.top = step.y + 'px';
+      }
 
-        let x = e.clientX - rect.left;
-        let y = e.clientY - rect.top;
-
-        x = Math.max(10, Math.min(x, rect.width - 10));
-        y = Math.max(10, Math.min(y, rect.height - 10));
-
-        element.style.left = x + 'px';
-        element.style.top = y + 'px';
-      });
-
-      document.addEventListener('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          document.body.classList.remove('is-dragging');
-        }
-      });
+      addLog(`핀 #${step.id.replace('pin_', '')} 이동: X=${step.x}, Y=${step.y}`);
     }
 
-    // 패널 크기 조절 리사이저 로직
+    // 패널 크기 조절 리사이저
     const resizer = document.getElementById('resizer');
     const rightPanel = document.getElementById('rightPanel');
     let isResizing = false;
@@ -461,7 +480,6 @@
     resizer.addEventListener('mousedown', (e) => {
       isResizing = true;
       document.body.classList.add('is-resizing');
-      document.body.classList.add('is-dragging'); // iframe 마우스 방해 차단 공유
       e.preventDefault();
     });
 
@@ -477,11 +495,9 @@
       if (isResizing) {
         isResizing = false;
         document.body.classList.remove('is-resizing');
-        document.body.classList.remove('is-dragging');
       }
     });
 
-    // 휠 스크롤 스텝 추가
     function addScrollStep(direction) {
       const distInput = document.getElementById('scrollDistance');
       const distance = parseInt(distInput.value) || 300;
@@ -497,24 +513,42 @@
       addLog(`스크롤 추가: ${name}`);
     }
 
-    // 스텝 UI 렌더링
+    // 스텝 선택하기
+    function selectStep(index) {
+      selectedStepIndex = index;
+      document.querySelectorAll('.target-pin').forEach(p => p.classList.remove('selected'));
+      document.querySelectorAll('.step-item').forEach(s => s.classList.remove('selected-step'));
+
+      if (index !== null && steps[index]) {
+        const itemEl = document.getElementById(`step_ui_${index}`);
+        if (itemEl) itemEl.classList.add('selected-step');
+
+        if (steps[index].type === 'click') {
+          const pinEl = document.getElementById(steps[index].id);
+          if (pinEl) pinEl.classList.add('selected');
+        }
+      }
+    }
+
     function renderSteps() {
       const listEl = document.getElementById('stepList');
       listEl.innerHTML = '';
 
       if (steps.length === 0) {
         listEl.innerHTML = '<div style="font-size:11px; color:#8c959f; text-align:center; padding:8px;">등록된 액션이 없습니다.</div>';
+        selectedStepIndex = null;
         return;
       }
 
       steps.forEach((step, idx) => {
         const item = document.createElement('div');
-        item.className = 'step-item';
+        item.className = 'step-item' + (idx === selectedStepIndex ? ' selected-step' : '');
         item.id = `step_ui_${idx}`;
+        item.onclick = () => selectStep(idx);
         item.innerHTML = `
           <span class="step-number">${idx + 1}</span>
           <span class="step-info">${step.name}</span>
-          <button class="btn-sm" onclick="removeStep(${idx})">삭제</button>
+          <button class="btn-sm" onclick="event.stopPropagation(); removeStep(${idx})">삭제</button>
         `;
         listEl.appendChild(item);
       });
@@ -527,17 +561,18 @@
         if (pin) pin.remove();
       }
       steps.splice(index, 1);
+      if (selectedStepIndex === index) selectedStepIndex = null;
       renderSteps();
     }
 
     function clearSteps() {
       document.querySelectorAll('.target-pin').forEach(el => el.remove());
       steps = [];
+      selectedStepIndex = null;
       renderSteps();
       addLog('전체 스텝 삭제됨');
     }
 
-    // 매크로 실행
     async function startScenario() {
       if (steps.length === 0) {
         alert('액션을 추가해 주세요.');
