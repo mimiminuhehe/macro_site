@@ -4,7 +4,7 @@
     return;
   }
 
-  // 1. 스타일 주입 (가독성 최적화 및 핀 스타일)
+  // 1. 스타일 주입
   const style = document.createElement('style');
   style.innerHTML = `
     #macro-pro-panel {
@@ -29,11 +29,11 @@
     .mp-stop { background: #cf222e; } .mp-stop:hover { background: #a40e26; }
     .mp-log { font-family: monospace; font-size: 10px; background: #1b1f23; color: #00ff66; padding: 8px; height: 75px; overflow-y: auto; border-radius: 6px; white-space: pre-wrap; line-height: 1.3; }
 
-    /* 화면에 생성되는 드래그 가능한 핀 아이콘 */
+    /* 드래그 가능한 핀 아이콘 */
     .macro-drag-pin {
-      position: absolute; width: 26px; height: 26px; background-color: #0969da; color: white;
+      position: absolute; width: 28px; height: 28px; background-color: #0969da; color: white;
       border: 2px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-weight: bold; font-size: 11px; box-shadow: 0 3px 8px rgba(0,0,0,0.3); cursor: grab; z-index: 99998;
+      font-weight: bold; font-size: 11px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: grab; z-index: 99998;
       transform: translate(-50%, -50%); user-select: none;
     }
     .macro-drag-pin:active { cursor: grabbing; background-color: #1f883d; }
@@ -51,7 +51,7 @@
     
     <div class="mp-section">
       <span class="mp-label">클릭 위치 지정</span>
-      <button class="mp-btn" id="mp-add-pin" style="background: #ddf4ff; color: #0969da; border-color: #0969da;">📍 클릭 핀 추가 (마우스 드래그 가능)</button>
+      <button class="mp-btn" id="mp-add-pin" style="background: #ddf4ff; color: #0969da; border-color: #0969da;">📍 클릭 핀 추가 (마우스로 끌어서 이동)</button>
     </div>
 
     <div class="mp-section">
@@ -116,46 +116,47 @@
     style.remove();
   };
 
-  // 📍 드래그 가능한 클릭 핀 추가 기능
+  // 📍 안정적으로 개선된 드래그 핀 추가 기능
   document.getElementById('mp-add-pin').onclick = () => {
     pinCounter++;
     const pinId = `macro-pin-${pinCounter}`;
     
-    // 화면 중앙에 핀 생성
     const pin = document.createElement('div');
     pin.className = 'macro-drag-pin';
     pin.id = pinId;
     pin.innerText = pinCounter;
     
-    // 초기 위치 (현재 스크롤 기준 화면 중앙)
-    let posX = window.scrollX + window.innerWidth / 2 + (pinCounter * 15 - 50);
-    let posY = window.scrollY + window.innerHeight / 2 + (pinCounter * 15 - 50);
+    // 페이지 스크롤 위치를 고려한 화면 중앙에 배치 (절대 좌표 기준)
+    let posX = window.pageXOffset + window.innerWidth / 2 + (pinCounter * 20 - 40);
+    let posY = window.pageYOffset + window.innerHeight / 2 + (pinCounter * 20 - 40);
+    
     pin.style.left = `${posX}px`;
     pin.style.top = `${posY}px`;
     document.body.appendChild(pin);
 
-    // 드래그 로직 구현
-    let isDragging = false;
-    let startX, startY;
+    // 향상된 드래그 이벤트 (document 단위 추적)
+    pin.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      
+      const shiftX = e.clientX - pin.getBoundingClientRect().left;
+      const shiftY = e.clientY - pin.getBoundingClientRect().top;
 
-    pin.onmousedown = (e) => {
-      isDragging = true;
-      startX = e.clientX - pin.offsetLeft;
-      startY = e.clientY - pin.offsetTop;
-      e.stopPropagation();
-    };
+      function onMouseMove(e) {
+        let newX = e.clientX - shiftX + window.pageXOffset;
+        let newY = e.clientY - shiftY + window.pageYOffset;
+        pin.style.left = `${newX}px`;
+        pin.style.top = `${newY}px`;
+      }
 
-    document.onmousemove = (e) => {
-      if (!isDragging) return;
-      pin.style.left = `${e.clientX - startX}px`;
-      pin.style.top = `${e.clientY - startY}px`;
-    };
+      function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      }
 
-    document.onmouseup = () => {
-      isDragging = false;
-    };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
 
-    // 스텝 배열에 추가
     steps.push({
       type: 'click',
       pinId: pinId,
@@ -163,7 +164,7 @@
     });
 
     renderSteps();
-    log(`📍 핀 #${pinCounter} 생성됨 (마우스로 끌어서 위치를 맞추세요)`);
+    log(`📍 핀 #${pinCounter} 생성됨 (마우스로 드래그하여 위치 조절 가능)`);
   };
 
   // 📜 휠 내리기 추가
@@ -182,7 +183,6 @@
     log(`휠 올리기 추가 (${dist}px)`);
   };
 
-  // 스텝 목록 렌더링
   function renderSteps() {
     const listEl = document.getElementById('mp-step-list');
     listEl.innerHTML = '';
@@ -199,7 +199,6 @@
     });
   }
 
-  // 스텝 삭제
   window.mpRemove = function(idx) {
     const s = steps[idx];
     if(s.type === 'click') {
@@ -211,7 +210,6 @@
     log('스텝 삭제됨');
   };
 
-  // 전체 삭제
   document.getElementById('mp-clear').onclick = () => {
     document.querySelectorAll('.macro-drag-pin').forEach(p => p.remove());
     steps = [];
@@ -251,12 +249,10 @@
         if(s.type === 'click') {
           const pin = document.getElementById(s.pinId);
           if(pin) {
-            // 핀의 현재 화면상 좌표(px) 계산
             const rect = pin.getBoundingClientRect();
             const clientX = rect.left + rect.width / 2;
             const clientY = rect.top + rect.height / 2;
 
-            // 해당 좌표에 있는 실제 HTML 요소 찾기
             const targetEl = document.elementFromPoint(clientX, clientY);
             if(targetEl) {
               targetEl.click();
@@ -282,7 +278,6 @@
     }
   };
 
-  // ⏹ 중지
   document.getElementById('mp-stop').onclick = () => {
     isRunning = false;
     document.getElementById('mp-start').disabled = false;
