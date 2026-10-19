@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iframe 미리보기 & 조작 패널</title>
+  <title>Iframe 오토마우스 매크로 컨트롤러</title>
   <style>
     * {
       box-sizing: border-box;
@@ -20,7 +20,7 @@
     }
 
     /* -----------------------------------
-       왼쪽 영역: Iframe 및 URL 입력창
+       왼쪽 영역: Iframe 및 화면
     ----------------------------------- */
     .left-panel {
       flex: 1;
@@ -28,6 +28,7 @@
       flex-direction: column;
       border-right: 1px solid #e1e4e8;
       background-color: #ffffff;
+      position: relative;
     }
 
     .url-bar-container {
@@ -46,11 +47,6 @@
       border: 1px solid #ced4da;
       border-radius: 6px;
       outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .url-input:focus {
-      border-color: #0969da;
     }
 
     .btn {
@@ -62,7 +58,6 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      transition: background-color 0.2s;
     }
 
     .btn:hover {
@@ -74,7 +69,6 @@
       width: 100%;
       height: 100%;
       position: relative;
-      background-color: #ffffff;
     }
 
     iframe {
@@ -83,17 +77,32 @@
       border: none;
     }
 
+    /* 오토마우스 클릭 시각 표시용 레이어 */
+    .click-target-indicator {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 2px solid red;
+      border-radius: 50%;
+      background: rgba(255, 0, 0, 0.3);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      display: none;
+      z-index: 999;
+    }
+
     /* -----------------------------------
        오른쪽 영역: 조작 패널
     ----------------------------------- */
     .right-panel {
-      width: 320px;
+      width: 340px;
       background-color: #ffffff;
       display: flex;
       flex-direction: column;
       padding: 20px;
-      gap: 20px;
-      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.03);
+      gap: 16px;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
+      overflow-y: auto;
     }
 
     .panel-title {
@@ -104,39 +113,80 @@
       padding-bottom: 10px;
     }
 
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0969da;
+      margin-top: 5px;
+    }
+
     .control-group {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     .control-label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #57606a;
     }
 
-    .btn-secondary {
-      padding: 8px 12px;
-      font-size: 13px;
-      background-color: #f6f8fa;
-      color: #24292f;
-      border: 1px solid rgba(27, 31, 36, 0.15);
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background-color 0.2s;
+    .input-group {
+      display: flex;
+      gap: 8px;
     }
 
-    .btn-secondary:hover {
-      background-color: #f3f4f6;
+    .input-field {
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 13px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+    }
+
+    .btn-action {
+      padding: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: white;
+    }
+
+    .btn-start {
+      background-color: #2ea44f;
+    }
+    .btn-start:hover {
+      background-color: #2c974b;
+    }
+
+    .btn-stop {
+      background-color: #cf222e;
+    }
+    .btn-stop:hover {
+      background-color: #a40e26;
+    }
+
+    .log-box {
+      font-family: monospace;
+      font-size: 11px;
+      background-color: #1b1f23;
+      color: #00ff66;
+      padding: 10px;
+      border-radius: 6px;
+      height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
     }
 
     .notice-box {
-      font-size: 12px;
+      font-size: 11px;
       color: #6e7781;
       background-color: #fff8c5;
       border: 1px solid rgba(212, 167, 44, 0.4);
-      padding: 10px;
+      padding: 8px;
       border-radius: 6px;
       line-height: 1.4;
     }
@@ -144,81 +194,194 @@
 </head>
 <body>
 
-  <!-- 왼쪽: 주소 입력창 + iframe -->
+  <!-- 왼쪽: URL 및 Iframe 영역 -->
   <div class="left-panel">
     <div class="url-bar-container">
-      <input 
-        type="text" 
-        id="urlInput" 
-        class="url-input" 
-        placeholder="https://example.com 형식으로 입력하세요" 
-        value="https://example.com"
-      >
+      <input type="text" id="urlInput" class="url-input" placeholder="https://example.com" value="https://example.com">
       <button class="btn" onclick="loadUrl()">이동</button>
     </div>
-    <div class="iframe-wrapper">
+    <div class="iframe-wrapper" id="iframeWrapper">
+      <div id="clickIndicator" class="click-target-indicator"></div>
       <iframe id="siteIframe" src="https://example.com"></iframe>
     </div>
   </div>
 
-  <!-- 오른쪽: 조작 패널 -->
+  <!-- 오른쪽: 오토마우스 매크로 조작 패널 -->
   <div class="right-panel">
-    <h2 class="panel-title">조작 패널</h2>
+    <h2 class="panel-title">오토마우스 매크로</h2>
 
-    <!-- 컨트롤 항목 예시 1: 새로고침 -->
+    <!-- 매크로 모드 선택 -->
     <div class="control-group">
-      <span class="control-label">화면 제어</span>
-      <button class="btn-secondary" onclick="reloadIframe()">iframe 새로고침</button>
+      <label class="control-label">클릭 방식 모드</label>
+      <select id="macroMode" class="input-field" onchange="toggleModeUI()">
+        <option value="css">1. CSS 선택자 (Element Click)</option>
+        <option value="coord">2. X, Y 좌표 클릭</option>
+      </select>
     </div>
 
-    <!-- 컨트롤 항목 예시 2: 너비 조절 -->
-    <div class="control-group">
-      <span class="control-label">미리보기 해상도</span>
-      <button class="btn-secondary" onclick="setIframeWidth('100%')">전체 너비 (100%)</button>
-      <button class="btn-secondary" onclick="setIframeWidth('375px')">모바일 크기 (375px)</button>
+    <!-- 모드 1: CSS 선택자 입력 -->
+    <div id="cssModeGroup" class="control-group">
+      <label class="control-label">대상 버튼 CSS 선택자 (Selector)</label>
+      <input type="text" id="targetSelector" class="input-field" placeholder="예: #submit-btn 또는 .click-me">
     </div>
 
-    <!-- 안내 사항 -->
+    <!-- 모드 2: 좌표 입력 -->
+    <div id="coordModeGroup" class="control-group" style="display: none;">
+      <label class="control-label">Iframe 내 클릭 좌표 (픽셀)</label>
+      <div class="input-group">
+        <input type="number" id="coordX" class="input-field" placeholder="X 좌표 (px)" value="100">
+        <input type="number" id="coordY" class="input-field" placeholder="Y 좌표 (px)" value="100">
+      </div>
+    </div>
+
+    <!-- 반복 주기 설정 -->
+    <div class="control-group">
+      <label class="control-label">클릭 간격 (초 단위)</label>
+      <input type="number" id="clickInterval" class="input-field" value="1" min="0.1" step="0.1">
+    </div>
+
+    <!-- 조작 버튼 -->
+    <div class="input-group" style="margin-top: 10px;">
+      <button id="startBtn" class="btn-action btn-start" style="flex:1;" onclick="startMacro()">매크로 시작</button>
+      <button id="stopBtn" class="btn-action btn-stop" style="flex:1;" onclick="stopMacro()" disabled>중지</button>
+    </div>
+
+    <!-- 실행 로그 -->
+    <div class="control-group">
+      <span class="control-label">실행 로그</span>
+      <div id="logArea" class="log-box">> 매크로 대기 중...</div>
+    </div>
+
+    <!-- 보안 제한 안내 -->
     <div class="notice-box">
-      ⚠️ <strong>참고:</strong> Google, Naver 등 일부 사이트는 보안 정책(X-Frame-Options)으로 인해 iframe 내부 표출이 블록될 수 있습니다. 본인이 제작한 웹사이트나 오픈된 URL 테스트용으로 적합합니다.
+      ⚠️ <strong>CORS 보안 주의:</strong><br>
+      브라우저 보안(Same-Origin Policy)상 <u>같은 도메인의 페이지</u>만 오토마우스 클릭이 작동합니다.<br>
+      (외부 타사이트는 자바스크립트 접근이 차단됩니다.)
     </div>
   </div>
 
   <script>
-    // URL 이동 함수
+    let macroTimer = null;
+    let clickCount = 0;
+
+    // URL 이동
     function loadUrl() {
       const input = document.getElementById('urlInput');
       let url = input.value.trim();
-
       if (!url) return;
-
-      // http:// 나 https:// 가 없으면 자동으로 붙여줌
       if (!/^https?:\/\//i.test(url)) {
         url = 'https://' + url;
         input.value = url;
       }
-
       document.getElementById('siteIframe').src = url;
+      addLog(`URL 이동: ${url}`);
     }
 
-    // 엔터키 입력 시 이동 처리
-    document.getElementById('urlInput').addEventListener('keypress', function (e) {
-      if (e.key === 'Enter') {
-        loadUrl();
-      }
+    document.getElementById('urlInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadUrl();
     });
 
-    // iframe 새로고침
-    function reloadIframe() {
-      const iframe = document.getElementById('siteIframe');
-      iframe.src = iframe.src;
+    // UI 모드 전환
+    function toggleModeUI() {
+      const mode = document.getElementById('macroMode').value;
+      if (mode === 'css') {
+        document.getElementById('cssModeGroup').style.display = 'flex';
+        document.getElementById('coordModeGroup').style.display = 'none';
+      } else {
+        document.getElementById('cssModeGroup').style.display = 'none';
+        document.getElementById('coordModeGroup').style.display = 'flex';
+      }
     }
 
-    // iframe 너비 변경 예시
-    function setIframeWidth(width) {
+    // 로그 출력
+    function addLog(msg) {
+      const logArea = document.getElementById('logArea');
+      const time = new Date().toLocaleTimeString();
+      logArea.innerText += `\n[${time}] ${msg}`;
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    // 매크로 시작
+    function startMacro() {
+      const intervalSec = parseFloat(document.getElementById('clickInterval').value);
+      if (isNaN(intervalSec) || intervalSec <= 0) {
+        alert('올바른 간격을 입력하세요.');
+        return;
+      }
+
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      clickCount = 0;
+
+      addLog(`매크로 시작 (간격: ${intervalSec}초)`);
+
+      const intervalMs = intervalSec * 1000;
+      macroTimer = setInterval(executeAutoClick, intervalMs);
+    }
+
+    // 매크로 중지
+    function stopMacro() {
+      if (macroTimer) {
+        clearInterval(macroTimer);
+        macroTimer = null;
+      }
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      document.getElementById('clickIndicator').style.display = 'none';
+      addLog('매크로가 중지되었습니다.');
+    }
+
+    // 오토클릭 실행 로직
+    function executeAutoClick() {
       const iframe = document.getElementById('siteIframe');
-      iframe.style.width = width;
-      iframe.style.margin = width === '100%' ? '0' : '0 auto';
+      const mode = document.getElementById('macroMode').value;
+      clickCount++;
+
+      try {
+        // Same-Origin 접근 확인
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+        if (mode === 'css') {
+          const selector = document.getElementById('targetSelector').value.trim();
+          if (!selector) {
+            addLog(`Error: CSS 선택자를 입력해 주세요.`);
+            stopMacro();
+            return;
+          }
+
+          const element = iframeDoc.querySelector(selector);
+          if (element) {
+            element.click();
+            addLog(`[${clickCount}회] 요소를 클릭했습니다: ${selector}`);
+          } else {
+            addLog(`[${clickCount}회] 요소를 찾을 수 없음: ${selector}`);
+          }
+        } else if (mode === 'coord') {
+          const x = parseInt(document.getElementById('coordX').value) || 0;
+          const y = parseInt(document.getElementById('coordY').value) || 0;
+
+          // 좌표의 요소 찾아서 클릭
+          const targetEl = iframeDoc.elementFromPoint(x, y);
+          if (targetEl) {
+            targetEl.click();
+            showIndicator(x, y);
+            addLog(`[${clickCount}회] 좌표 (${x}, ${y}) 요소 클릭 완료`);
+          } else {
+            addLog(`[${clickCount}회] 좌표 (${x}, ${y})에 클릭할 요소 없음`);
+          }
+        }
+      } catch (err) {
+        addLog(`❌ 오류: 보안(CORS) 제한으로 인해 이 외부 사이트의 내부 요소를 제어할 수 없습니다.`);
+        stopMacro();
+      }
+    }
+
+    // 클릭 좌표 visual 표시
+    function showIndicator(x, y) {
+      const indicator = document.getElementById('clickIndicator');
+      indicator.style.left = x + 'px';
+      indicator.style.top = y + 'px';
+      indicator.style.display = 'block';
     }
   </script>
 </body>
