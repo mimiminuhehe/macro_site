@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iframe 오토마우스 매크로 컨트롤러</title>
+  <title>Iframe 비주얼 오토마우스 & 스크롤 매크로</title>
   <style>
     * {
       box-sizing: border-box;
@@ -17,6 +17,7 @@
       display: flex;
       background-color: #f4f6f8;
       overflow: hidden;
+      user-select: none;
     }
 
     /* -----------------------------------
@@ -38,6 +39,7 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      z-index: 10;
     }
 
     .url-input {
@@ -69,6 +71,7 @@
       width: 100%;
       height: 100%;
       position: relative;
+      overflow: hidden;
     }
 
     iframe {
@@ -77,25 +80,42 @@
       border: none;
     }
 
-    /* 오토마우스 클릭 시각 표시용 레이어 */
-    .click-target-indicator {
+    /* 드래그 가능한 클릭 타겟 아이콘 */
+    .target-pin {
       position: absolute;
-      width: 20px;
-      height: 20px;
-      border: 2px solid red;
+      width: 36px;
+      height: 36px;
+      background-color: #cf222e;
+      color: white;
+      border: 2px solid white;
       border-radius: 50%;
-      background: rgba(255, 0, 0, 0.3);
-      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 13px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      cursor: grab;
+      z-index: 100;
       transform: translate(-50%, -50%);
-      display: none;
-      z-index: 999;
+      transition: transform 0.1s;
+    }
+
+    .target-pin:active {
+      cursor: grabbing;
+      transform: translate(-50%, -50%) scale(1.15);
+    }
+
+    .target-pin.active-highlight {
+      background-color: #2ea44f;
+      box-shadow: 0 0 0 6px rgba(46, 164, 79, 0.4);
     }
 
     /* -----------------------------------
        오른쪽 영역: 조작 패널
     ----------------------------------- */
     .right-panel {
-      width: 340px;
+      width: 360px;
       background-color: #ffffff;
       display: flex;
       flex-direction: column;
@@ -114,22 +134,18 @@
     }
 
     .section-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
-      color: #0969da;
-      margin-top: 5px;
+      color: #57606a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .control-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
-    }
-
-    .control-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #57606a;
     }
 
     .input-group {
@@ -145,6 +161,58 @@
       border-radius: 4px;
     }
 
+    /* 시나리오 스텝 리스트 */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 8px;
+      background-color: #f8f9fa;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #ffffff;
+      padding: 8px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .step-item.executing {
+      border-color: #2ea44f;
+      background-color: #dafbe1;
+    }
+
+    .step-number {
+      font-weight: bold;
+      color: #0969da;
+      width: 20px;
+    }
+
+    .step-info {
+      flex: 1;
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: 1px solid #d0d7de;
+      background: #f6f8fa;
+      cursor: pointer;
+    }
+
+    .btn-sm:hover {
+      background: #eef1f4;
+    }
+
     .btn-action {
       padding: 10px;
       font-size: 14px;
@@ -155,19 +223,10 @@
       color: white;
     }
 
-    .btn-start {
-      background-color: #2ea44f;
-    }
-    .btn-start:hover {
-      background-color: #2c974b;
-    }
-
-    .btn-stop {
-      background-color: #cf222e;
-    }
-    .btn-stop:hover {
-      background-color: #a40e26;
-    }
+    .btn-start { background-color: #2ea44f; }
+    .btn-start:hover { background-color: #2c974b; }
+    .btn-stop { background-color: #cf222e; }
+    .btn-stop:hover { background-color: #a40e26; }
 
     .log-box {
       font-family: monospace;
@@ -176,7 +235,7 @@
       color: #00ff66;
       padding: 10px;
       border-radius: 6px;
-      height: 120px;
+      height: 100px;
       overflow-y: auto;
       white-space: pre-wrap;
     }
@@ -194,75 +253,84 @@
 </head>
 <body>
 
-  <!-- 왼쪽: URL 및 Iframe 영역 -->
+  <!-- 왼쪽: URL 및 Iframe & 타겟 핀 레이어 -->
   <div class="left-panel">
     <div class="url-bar-container">
       <input type="text" id="urlInput" class="url-input" placeholder="https://example.com" value="https://example.com">
       <button class="btn" onclick="loadUrl()">이동</button>
     </div>
     <div class="iframe-wrapper" id="iframeWrapper">
-      <div id="clickIndicator" class="click-target-indicator"></div>
       <iframe id="siteIframe" src="https://example.com"></iframe>
     </div>
   </div>
 
-  <!-- 오른쪽: 오토마우스 매크로 조작 패널 -->
+  <!-- 오른쪽: 매크로 조작 패널 -->
   <div class="right-panel">
-    <h2 class="panel-title">오토마우스 매크로</h2>
+    <h2 class="panel-title">매크로 시나리오 생성기</h2>
 
-    <!-- 매크로 모드 선택 -->
+    <!-- 액션 추가 버튼 목록 -->
     <div class="control-group">
-      <label class="control-label">클릭 방식 모드</label>
-      <select id="macroMode" class="input-field" onchange="toggleModeUI()">
-        <option value="css">1. CSS 선택자 (Element Click)</option>
-        <option value="coord">2. X, Y 좌표 클릭</option>
-      </select>
-    </div>
-
-    <!-- 모드 1: CSS 선택자 입력 -->
-    <div id="cssModeGroup" class="control-group">
-      <label class="control-label">대상 버튼 CSS 선택자 (Selector)</label>
-      <input type="text" id="targetSelector" class="input-field" placeholder="예: #submit-btn 또는 .click-me">
-    </div>
-
-    <!-- 모드 2: 좌표 입력 -->
-    <div id="coordModeGroup" class="control-group" style="display: none;">
-      <label class="control-label">Iframe 내 클릭 좌표 (픽셀)</label>
+      <div class="section-title">액션 추가</div>
       <div class="input-group">
-        <input type="number" id="coordX" class="input-field" placeholder="X 좌표 (px)" value="100">
-        <input type="number" id="coordY" class="input-field" placeholder="Y 좌표 (px)" value="100">
+        <button class="btn-sm" style="flex:1;" onclick="addClickPin()">🎯 클릭 타겟 추가</button>
+        <button class="btn-sm" style="flex:1;" onclick="addScrollStep('down')">📜 휠 내리기</button>
+        <button class="btn-sm" style="flex:1;" onclick="addScrollStep('up')">📜 휠 올리기</button>
       </div>
     </div>
 
-    <!-- 반복 주기 설정 -->
+    <!-- 시나리오 단계 목록 -->
     <div class="control-group">
-      <label class="control-label">클릭 간격 (초 단위)</label>
-      <input type="number" id="clickInterval" class="input-field" value="1" min="0.1" step="0.1">
+      <div class="section-title">
+        <span>시나리오 순서</span>
+        <button class="btn-sm" onclick="clearSteps()">전체 삭제</button>
+      </div>
+      <div id="stepList" class="step-list">
+        <!-- 순서별 스텝이 추가되는 공간 -->
+      </div>
     </div>
 
-    <!-- 조작 버튼 -->
-    <div class="input-group" style="margin-top: 10px;">
-      <button id="startBtn" class="btn-action btn-start" style="flex:1;" onclick="startMacro()">매크로 시작</button>
-      <button id="stopBtn" class="btn-action btn-stop" style="flex:1;" onclick="stopMacro()" disabled>중지</button>
-    </div>
-
-    <!-- 실행 로그 -->
+    <!-- 반복 및 대기 설정 -->
     <div class="control-group">
-      <span class="control-label">실행 로그</span>
-      <div id="logArea" class="log-box">> 매크로 대기 중...</div>
+      <div class="section-title">반복 설정</div>
+      <div class="input-group">
+        <div style="flex:1;">
+          <label style="font-size:11px; color:#57606a;">스텝 간 대기(초)</label>
+          <input type="number" id="stepDelay" class="input-field" value="1" min="0.1" step="0.1">
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:11px; color:#57606a;">구간 반복 횟수</label>
+          <input type="number" id="loopCount" class="input-field" value="0" min="0" placeholder="0 = 무한">
+        </div>
+      </div>
     </div>
 
-    <!-- 보안 제한 안내 -->
+    <!-- 실행 제어 버튼 -->
+    <div class="input-group" style="margin-top: 5px;">
+      <button id="startBtn" class="btn-action btn-start" style="flex:1;" onclick="startScenario()">시나리오 시작</button>
+      <button id="stopBtn" class="btn-action btn-stop" style="flex:1;" onclick="stopScenario()" disabled>중지</button>
+    </div>
+
+    <!-- 로그 출력 -->
+    <div class="control-group">
+      <span class="section-title">실행 로그</span>
+      <div id="logArea" class="log-box">> 시나리오를 구성한 뒤 시작해 주세요.</div>
+    </div>
+
+    <!-- 안내 사항 -->
     <div class="notice-box">
-      ⚠️ <strong>CORS 보안 주의:</strong><br>
-      브라우저 보안(Same-Origin Policy)상 <u>같은 도메인의 페이지</u>만 오토마우스 클릭이 작동합니다.<br>
-      (외부 타사이트는 자바스크립트 접근이 차단됩니다.)
+      📌 <b>사용 방법:</b><br>
+      1. [🎯 클릭 타겟 추가] 버튼 누른 후 생성된 핀을 원하는 위치로 드래그하세요.<br>
+      2. 휠 내리기/올리기 액션을 조합해 순서를 만드세요.<br>
+      3. [시나리오 시작]을 누르면 구간 반복이 진행됩니다.<br>
+      *(CORS 보안 정책으로 인해 동일 도메인 또는 허용된 웹페이지에서 동작합니다)*
     </div>
   </div>
 
   <script>
-    let macroTimer = null;
-    let clickCount = 0;
+    let steps = [];           // 매크로 단계 목록
+    let pinCounter = 0;       // 핀 식별 번호
+    let isRunning = false;     // 매크로 실행 상태
+    let currentLoop = 0;      // 현재 반복 횟수
 
     // URL 이동
     function loadUrl() {
@@ -281,107 +349,235 @@
       if (e.key === 'Enter') loadUrl();
     });
 
-    // UI 모드 전환
-    function toggleModeUI() {
-      const mode = document.getElementById('macroMode').value;
-      if (mode === 'css') {
-        document.getElementById('cssModeGroup').style.display = 'flex';
-        document.getElementById('coordModeGroup').style.display = 'none';
-      } else {
-        document.getElementById('cssModeGroup').style.display = 'none';
-        document.getElementById('coordModeGroup').style.display = 'flex';
+    // 클릭 타겟 핀 추가 (드래그 가능)
+    function addClickPin() {
+      pinCounter++;
+      const pinId = 'pin_' + pinCounter;
+      const wrapper = document.getElementById('iframeWrapper');
+
+      // 핀 HTML 엘리먼트 생성
+      const pin = document.createElement('div');
+      pin.className = 'target-pin';
+      pin.id = pinId;
+      pin.innerText = pinCounter;
+      pin.style.left = '100px';
+      pin.style.top = '100px';
+      wrapper.appendChild(pin);
+
+      // 드래그 기능 구현
+      makeDraggable(pin);
+
+      // 스텝 리스트에 추가
+      steps.push({
+        id: pinId,
+        type: 'click',
+        name: `🎯 클릭 (핀 #${pinCounter})`,
+        getCoords: () => {
+          return {
+            x: parseInt(pin.style.left),
+            y: parseInt(pin.style.top)
+          };
+        }
+      });
+
+      renderSteps();
+      addLog(`핀 #${pinCounter} 추가됨 (마우스로 드래그 가능)`);
+    }
+
+    // 마우스 휠 스크롤 스텝 추가
+    function addScrollStep(direction) {
+      const name = direction === 'down' ? '📜 휠 내리기 (아래로)' : '📜 휠 올리기 (위로)';
+      steps.push({
+        type: 'scroll',
+        direction: direction,
+        name: name
+      });
+      renderSteps();
+      addLog(`스크롤 액션 추가됨: ${name}`);
+    }
+
+    // 핀 드래그 이벤트 처리
+    function makeDraggable(element) {
+      let isDragging = false;
+      let offsetX, offsetY;
+
+      element.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        offsetX = e.clientX - element.offsetLeft;
+        offsetY = e.clientY - element.offsetTop;
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const wrapper = document.getElementById('iframeWrapper');
+        const rect = wrapper.getBoundingClientRect();
+
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        // 경계 제한
+        x = Math.max(10, Math.min(x, rect.width - 10));
+        y = Math.max(10, Math.min(y, rect.height - 10));
+
+        element.style.left = x + 'px';
+        element.style.top = y + 'px';
+      });
+
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+    }
+
+    // 스텝 리스트 UI 렌더링
+    function renderSteps() {
+      const listEl = document.getElementById('stepList');
+      listEl.innerHTML = '';
+
+      if (steps.length === 0) {
+        listEl.innerHTML = '<div style="font-size:11px; color:#8c959f; text-align:center; padding:10px;">등록된 액션이 없습니다.</div>';
+        return;
+      }
+
+      steps.forEach((step, idx) => {
+        const item = document.createElement('div');
+        item.className = 'step-item';
+        item.id = `step_ui_${idx}`;
+        item.innerHTML = `
+          <span class="step-number">${idx + 1}</span>
+          <span class="step-info">${step.name}</span>
+          <button class="btn-sm" onclick="removeStep(${idx})">삭제</button>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    // 개별 스텝 삭제
+    function removeStep(index) {
+      const step = steps[index];
+      if (step.type === 'click') {
+        const pin = document.getElementById(step.id);
+        if (pin) pin.remove();
+      }
+      steps.splice(index, 1);
+      renderSteps();
+    }
+
+    // 전체 스텝 삭제
+    function clearSteps() {
+      document.querySelectorAll('.target-pin').forEach(el => el.remove());
+      steps = [];
+      renderSteps();
+      addLog('모든 시나리오 스텝 삭제됨');
+    }
+
+    // 시나리오 실행 로직
+    async function startScenario() {
+      if (steps.length === 0) {
+        alert('실행할 액션을 최소 1개 이상 추가하세요.');
+        return;
+      }
+
+      isRunning = true;
+      currentLoop = 0;
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+
+      const loopLimit = parseInt(document.getElementById('loopCount').value) || 0;
+      const delaySec = parseFloat(document.getElementById('stepDelay').value) || 1;
+
+      addLog(`▶️ 시나리오 시작 (대기: ${delaySec}초, 반복: ${loopLimit === 0 ? '무한' : loopLimit + '회'})`);
+
+      while (isRunning) {
+        currentLoop++;
+        addLog(`=== [회차 ${currentLoop}] 구간 시작 ===`);
+
+        for (let i = 0; i < steps.length; i++) {
+          if (!isRunning) break;
+
+          highlightStepUI(i);
+          const step = steps[i];
+
+          await executeStep(step);
+
+          // 스텝 간 대기
+          await sleep(delaySec * 1000);
+          unhighlightStepUI(i);
+        }
+
+        if (loopLimit > 0 && currentLoop >= loopLimit) {
+          addLog(`✅ 설정한 반복 횟수(${loopLimit}회)가 완료되었습니다.`);
+          stopScenario();
+          break;
+        }
       }
     }
 
-    // 로그 출력
+    // 개별 스텝 실행
+    async function executeStep(step) {
+      const iframe = document.getElementById('siteIframe');
+
+      try {
+        const iframeWin = iframe.contentWindow;
+        const iframeDoc = iframe.contentDocument || iframeWin.document;
+
+        if (step.type === 'click') {
+          const coords = step.getCoords();
+          const pinEl = document.getElementById(step.id);
+          if (pinEl) pinEl.classList.add('active-highlight');
+
+          const targetEl = iframeDoc.elementFromPoint(coords.x, coords.y);
+          if (targetEl) {
+            targetEl.click();
+            addLog(`🎯 클릭 완료: (${coords.x}px, ${coords.y}px)`);
+          } else {
+            addLog(`⚠️ 클릭 실패: 좌표에 클릭 가능한 엘리먼트 없음`);
+          }
+
+          setTimeout(() => {
+            if (pinEl) pinEl.classList.remove('active-highlight');
+          }, 300);
+
+        } else if (step.type === 'scroll') {
+          const scrollAmount = step.direction === 'down' ? 400 : -400;
+          iframeWin.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+          addLog(`📜 스크롤 실행: ${step.direction === 'down' ? '아래로' : '위로'}`);
+        }
+      } catch (err) {
+        addLog(`❌ CORS 오류: 타 도메인의 iframe 내부 제어가 거부되었습니다.`);
+        stopScenario();
+      }
+    }
+
+    // 중지
+    function stopScenario() {
+      isRunning = false;
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      document.querySelectorAll('.step-item').forEach(el => el.classList.remove('executing'));
+      addLog('⏹ 매크로가 중지되었습니다.');
+    }
+
+    // UI 하이라이트
+    function highlightStepUI(index) {
+      const item = document.getElementById(`step_ui_${index}`);
+      if (item) item.classList.add('executing');
+    }
+
+    function unhighlightStepUI(index) {
+      const item = document.getElementById(`step_ui_${index}`);
+      if (item) item.classList.remove('executing');
+    }
+
+    // 유틸리티
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     function addLog(msg) {
       const logArea = document.getElementById('logArea');
       const time = new Date().toLocaleTimeString();
       logArea.innerText += `\n[${time}] ${msg}`;
       logArea.scrollTop = logArea.scrollHeight;
-    }
-
-    // 매크로 시작
-    function startMacro() {
-      const intervalSec = parseFloat(document.getElementById('clickInterval').value);
-      if (isNaN(intervalSec) || intervalSec <= 0) {
-        alert('올바른 간격을 입력하세요.');
-        return;
-      }
-
-      document.getElementById('startBtn').disabled = true;
-      document.getElementById('stopBtn').disabled = false;
-      clickCount = 0;
-
-      addLog(`매크로 시작 (간격: ${intervalSec}초)`);
-
-      const intervalMs = intervalSec * 1000;
-      macroTimer = setInterval(executeAutoClick, intervalMs);
-    }
-
-    // 매크로 중지
-    function stopMacro() {
-      if (macroTimer) {
-        clearInterval(macroTimer);
-        macroTimer = null;
-      }
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
-      document.getElementById('clickIndicator').style.display = 'none';
-      addLog('매크로가 중지되었습니다.');
-    }
-
-    // 오토클릭 실행 로직
-    function executeAutoClick() {
-      const iframe = document.getElementById('siteIframe');
-      const mode = document.getElementById('macroMode').value;
-      clickCount++;
-
-      try {
-        // Same-Origin 접근 확인
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
-        if (mode === 'css') {
-          const selector = document.getElementById('targetSelector').value.trim();
-          if (!selector) {
-            addLog(`Error: CSS 선택자를 입력해 주세요.`);
-            stopMacro();
-            return;
-          }
-
-          const element = iframeDoc.querySelector(selector);
-          if (element) {
-            element.click();
-            addLog(`[${clickCount}회] 요소를 클릭했습니다: ${selector}`);
-          } else {
-            addLog(`[${clickCount}회] 요소를 찾을 수 없음: ${selector}`);
-          }
-        } else if (mode === 'coord') {
-          const x = parseInt(document.getElementById('coordX').value) || 0;
-          const y = parseInt(document.getElementById('coordY').value) || 0;
-
-          // 좌표의 요소 찾아서 클릭
-          const targetEl = iframeDoc.elementFromPoint(x, y);
-          if (targetEl) {
-            targetEl.click();
-            showIndicator(x, y);
-            addLog(`[${clickCount}회] 좌표 (${x}, ${y}) 요소 클릭 완료`);
-          } else {
-            addLog(`[${clickCount}회] 좌표 (${x}, ${y})에 클릭할 요소 없음`);
-          }
-        }
-      } catch (err) {
-        addLog(`❌ 오류: 보안(CORS) 제한으로 인해 이 외부 사이트의 내부 요소를 제어할 수 없습니다.`);
-        stopMacro();
-      }
-    }
-
-    // 클릭 좌표 visual 표시
-    function showIndicator(x, y) {
-      const indicator = document.getElementById('clickIndicator');
-      indicator.style.left = x + 'px';
-      indicator.style.top = y + 'px';
-      indicator.style.display = 'block';
     }
   </script>
 </body>
