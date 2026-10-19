@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iframe 비주얼 오토마우스 & 스크롤 매크로</title>
+  <title>Iframe 오토마우스 & 스크롤 매크로</title>
   <style>
     * {
       box-sizing: border-box;
@@ -27,13 +27,13 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      border-right: 1px solid #e1e4e8;
       background-color: #ffffff;
       position: relative;
+      min-width: 300px;
     }
 
     .url-bar-container {
-      padding: 12px 16px;
+      padding: 10px 14px;
       background-color: #f8f9fa;
       border-bottom: 1px solid #e1e4e8;
       display: flex;
@@ -44,16 +44,16 @@
 
     .url-input {
       flex: 1;
-      padding: 8px 12px;
-      font-size: 14px;
+      padding: 6px 10px;
+      font-size: 13px;
       border: 1px solid #ced4da;
       border-radius: 6px;
       outline: none;
     }
 
     .btn {
-      padding: 8px 14px;
-      font-size: 14px;
+      padding: 6px 12px;
+      font-size: 13px;
       font-weight: 500;
       color: #ffffff;
       background-color: #0969da;
@@ -80,21 +80,21 @@
       border: none;
     }
 
-    /* 드래그 가능한 클릭 타겟 아이콘 */
+    /* 드래그 가능한 클릭 타겟 아이콘 (사이즈 축소: 18px) */
     .target-pin {
       position: absolute;
-      width: 36px;
-      height: 36px;
+      width: 18px;
+      height: 18px;
       background-color: #cf222e;
       color: white;
-      border: 2px solid white;
+      border: 2px solid #ffffff;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      font-size: 13px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      font-size: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
       cursor: grab;
       z-index: 100;
       transform: translate(-50%, -50%);
@@ -103,12 +103,27 @@
 
     .target-pin:active {
       cursor: grabbing;
-      transform: translate(-50%, -50%) scale(1.15);
+      transform: translate(-50%, -50%) scale(1.3);
     }
 
     .target-pin.active-highlight {
       background-color: #2ea44f;
-      box-shadow: 0 0 0 6px rgba(46, 164, 79, 0.4);
+      box-shadow: 0 0 0 5px rgba(46, 164, 79, 0.4);
+    }
+
+    /* -----------------------------------
+       경계선 드래그 리사이저 (Resizer)
+    ----------------------------------- */
+    .resizer {
+      width: 6px;
+      background-color: #e1e4e8;
+      cursor: col-resize;
+      transition: background-color 0.2s;
+      z-index: 200;
+    }
+
+    .resizer:hover, .resizer.dragging {
+      background-color: #0969da;
     }
 
     /* -----------------------------------
@@ -116,25 +131,27 @@
     ----------------------------------- */
     .right-panel {
       width: 360px;
+      min-width: 250px;
+      max-width: 600px;
       background-color: #ffffff;
       display: flex;
       flex-direction: column;
-      padding: 20px;
-      gap: 16px;
+      padding: 16px;
+      gap: 14px;
       box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
       overflow-y: auto;
     }
 
     .panel-title {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       color: #24292f;
       border-bottom: 2px solid #f0f2f5;
-      padding-bottom: 10px;
+      padding-bottom: 8px;
     }
 
     .section-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       color: #57606a;
       display: flex;
@@ -150,13 +167,13 @@
 
     .input-group {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .input-field {
       width: 100%;
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 5px 8px;
+      font-size: 12px;
       border: 1px solid #ced4da;
       border-radius: 4px;
     }
@@ -165,23 +182,23 @@
     .step-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      max-height: 220px;
+      gap: 6px;
+      max-height: 200px;
       overflow-y: auto;
       border: 1px solid #e1e4e8;
       border-radius: 6px;
-      padding: 8px;
+      padding: 6px;
       background-color: #f8f9fa;
     }
 
     .step-item {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       background-color: #ffffff;
-      padding: 8px;
+      padding: 6px 8px;
       border: 1px solid #d0d7de;
-      border-radius: 6px;
+      border-radius: 5px;
       font-size: 12px;
     }
 
@@ -193,7 +210,7 @@
     .step-number {
       font-weight: bold;
       color: #0969da;
-      width: 20px;
+      width: 16px;
     }
 
     .step-info {
@@ -214,8 +231,8 @@
     }
 
     .btn-action {
-      padding: 10px;
-      font-size: 14px;
+      padding: 8px;
+      font-size: 13px;
       font-weight: 600;
       border: none;
       border-radius: 6px;
@@ -233,9 +250,9 @@
       font-size: 11px;
       background-color: #1b1f23;
       color: #00ff66;
-      padding: 10px;
+      padding: 8px;
       border-radius: 6px;
-      height: 100px;
+      height: 90px;
       overflow-y: auto;
       white-space: pre-wrap;
     }
@@ -264,15 +281,21 @@
     </div>
   </div>
 
+  <!-- 경계선 드래그 리사이저 -->
+  <div class="resizer" id="resizer"></div>
+
   <!-- 오른쪽: 매크로 조작 패널 -->
-  <div class="right-panel">
-    <h2 class="panel-title">매크로 시나리오 생성기</h2>
+  <div class="right-panel" id="rightPanel">
+    <h2 class="panel-title">매크로 조작 패널</h2>
 
     <!-- 액션 추가 버튼 목록 -->
     <div class="control-group">
       <div class="section-title">액션 추가</div>
+      <button class="btn-sm" style="width:100%; margin-bottom: 4px;" onclick="addClickPin()">🎯 클릭 타겟 추가</button>
+      
+      <!-- 휠 스크롤 거리 설정 추가 -->
       <div class="input-group">
-        <button class="btn-sm" style="flex:1;" onclick="addClickPin()">🎯 클릭 타겟 추가</button>
+        <input type="number" id="scrollDistance" class="input-field" value="300" placeholder="스크롤 픽셀(px)">
         <button class="btn-sm" style="flex:1;" onclick="addScrollStep('down')">📜 휠 내리기</button>
         <button class="btn-sm" style="flex:1;" onclick="addScrollStep('up')">📜 휠 올리기</button>
       </div>
@@ -285,7 +308,7 @@
         <button class="btn-sm" onclick="clearSteps()">전체 삭제</button>
       </div>
       <div id="stepList" class="step-list">
-        <!-- 순서별 스텝이 추가되는 공간 -->
+        <!-- 순서별 스텝 생성 -->
       </div>
     </div>
 
@@ -294,18 +317,18 @@
       <div class="section-title">반복 설정</div>
       <div class="input-group">
         <div style="flex:1;">
-          <label style="font-size:11px; color:#57606a;">스텝 간 대기(초)</label>
+          <label style="font-size:10px; color:#57606a;">스텝 대기(초)</label>
           <input type="number" id="stepDelay" class="input-field" value="1" min="0.1" step="0.1">
         </div>
         <div style="flex:1;">
-          <label style="font-size:11px; color:#57606a;">구간 반복 횟수</label>
-          <input type="number" id="loopCount" class="input-field" value="0" min="0" placeholder="0 = 무한">
+          <label style="font-size:10px; color:#57606a;">반복 횟수</label>
+          <input type="number" id="loopCount" class="input-field" value="0" min="0" placeholder="0=무한">
         </div>
       </div>
     </div>
 
     <!-- 실행 제어 버튼 -->
-    <div class="input-group" style="margin-top: 5px;">
+    <div class="input-group">
       <button id="startBtn" class="btn-action btn-start" style="flex:1;" onclick="startScenario()">시나리오 시작</button>
       <button id="stopBtn" class="btn-action btn-stop" style="flex:1;" onclick="stopScenario()" disabled>중지</button>
     </div>
@@ -313,24 +336,20 @@
     <!-- 로그 출력 -->
     <div class="control-group">
       <span class="section-title">실행 로그</span>
-      <div id="logArea" class="log-box">> 시나리오를 구성한 뒤 시작해 주세요.</div>
+      <div id="logArea" class="log-box">> 대기 중...</div>
     </div>
 
     <!-- 안내 사항 -->
     <div class="notice-box">
-      📌 <b>사용 방법:</b><br>
-      1. [🎯 클릭 타겟 추가] 버튼 누른 후 생성된 핀을 원하는 위치로 드래그하세요.<br>
-      2. 휠 내리기/올리기 액션을 조합해 순서를 만드세요.<br>
-      3. [시나리오 시작]을 누르면 구간 반복이 진행됩니다.<br>
-      *(CORS 보안 정책으로 인해 동일 도메인 또는 허용된 웹페이지에서 동작합니다)*
+      📌 <b>패널 크기 조정:</b> 좌우 경계선을 드래그하여 패널 너비를 조절할 수 있습니다.
     </div>
   </div>
 
   <script>
-    let steps = [];           // 매크로 단계 목록
-    let pinCounter = 0;       // 핀 식별 번호
-    let isRunning = false;     // 매크로 실행 상태
-    let currentLoop = 0;      // 현재 반복 횟수
+    let steps = [];           
+    let pinCounter = 0;       
+    let isRunning = false;     
+    let currentLoop = 0;      
 
     // URL 이동
     function loadUrl() {
@@ -349,25 +368,22 @@
       if (e.key === 'Enter') loadUrl();
     });
 
-    // 클릭 타겟 핀 추가 (드래그 가능)
+    // 클릭 타겟 핀 추가 (크기 축소: 18px)
     function addClickPin() {
       pinCounter++;
       const pinId = 'pin_' + pinCounter;
       const wrapper = document.getElementById('iframeWrapper');
 
-      // 핀 HTML 엘리먼트 생성
       const pin = document.createElement('div');
       pin.className = 'target-pin';
       pin.id = pinId;
       pin.innerText = pinCounter;
-      pin.style.left = '100px';
-      pin.style.top = '100px';
+      pin.style.left = '80px';
+      pin.style.top = '80px';
       wrapper.appendChild(pin);
 
-      // 드래그 기능 구현
       makeDraggable(pin);
 
-      // 스텝 리스트에 추가
       steps.push({
         id: pinId,
         type: 'click',
@@ -381,30 +397,32 @@
       });
 
       renderSteps();
-      addLog(`핀 #${pinCounter} 추가됨 (마우스로 드래그 가능)`);
+      addLog(`핀 #${pinCounter} 생성됨 (드래그하여 배치)`);
     }
 
-    // 마우스 휠 스크롤 스텝 추가
+    // 마우스 휠 스크롤 스텝 추가 (픽셀 거리 지정)
     function addScrollStep(direction) {
-      const name = direction === 'down' ? '📜 휠 내리기 (아래로)' : '📜 휠 올리기 (위로)';
+      const distInput = document.getElementById('scrollDistance');
+      const distance = parseInt(distInput.value) || 300;
+      const name = direction === 'down' ? `📜 휠 내리기 (${distance}px)` : `📜 휠 올리기 (${distance}px)`;
+      
       steps.push({
         type: 'scroll',
         direction: direction,
+        distance: distance,
         name: name
       });
       renderSteps();
-      addLog(`스크롤 액션 추가됨: ${name}`);
+      addLog(`스크롤 추가: ${name}`);
     }
 
-    // 핀 드래그 이벤트 처리
+    // 핀 드래그 기능
     function makeDraggable(element) {
       let isDragging = false;
-      let offsetX, offsetY;
 
       element.addEventListener('mousedown', (e) => {
         isDragging = true;
-        offsetX = e.clientX - element.offsetLeft;
-        offsetY = e.clientY - element.offsetTop;
+        e.stopPropagation();
       });
 
       document.addEventListener('mousemove', (e) => {
@@ -415,9 +433,8 @@
         let x = e.clientX - rect.left;
         let y = e.clientY - rect.top;
 
-        // 경계 제한
-        x = Math.max(10, Math.min(x, rect.width - 10));
-        y = Math.max(10, Math.min(y, rect.height - 10));
+        x = Math.max(5, Math.min(x, rect.width - 5));
+        y = Math.max(5, Math.min(y, rect.height - 5));
 
         element.style.left = x + 'px';
         element.style.top = y + 'px';
@@ -428,13 +445,36 @@
       });
     }
 
-    // 스텝 리스트 UI 렌더링
+    // 좌우 경계선 크기 조절 (Resizer)
+    const resizer = document.getElementById('resizer');
+    const rightPanel = document.getElementById('rightPanel');
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      resizer.classList.add('dragging');
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth > 200 && newWidth < 600) {
+        rightPanel.style.width = newWidth + 'px';
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isResizing = false;
+      resizer.classList.remove('dragging');
+    });
+
+    // 스텝 UI 렌더링
     function renderSteps() {
       const listEl = document.getElementById('stepList');
       listEl.innerHTML = '';
 
       if (steps.length === 0) {
-        listEl.innerHTML = '<div style="font-size:11px; color:#8c959f; text-align:center; padding:10px;">등록된 액션이 없습니다.</div>';
+        listEl.innerHTML = '<div style="font-size:11px; color:#8c959f; text-align:center; padding:8px;">액션이 없습니다.</div>';
         return;
       }
 
@@ -451,7 +491,6 @@
       });
     }
 
-    // 개별 스텝 삭제
     function removeStep(index) {
       const step = steps[index];
       if (step.type === 'click') {
@@ -462,18 +501,17 @@
       renderSteps();
     }
 
-    // 전체 스텝 삭제
     function clearSteps() {
       document.querySelectorAll('.target-pin').forEach(el => el.remove());
       steps = [];
       renderSteps();
-      addLog('모든 시나리오 스텝 삭제됨');
+      addLog('전체 스텝 삭제됨');
     }
 
-    // 시나리오 실행 로직
+    // 매크로 실행
     async function startScenario() {
       if (steps.length === 0) {
-        alert('실행할 액션을 최소 1개 이상 추가하세요.');
+        alert('액션을 추가해 주세요.');
         return;
       }
 
@@ -485,34 +523,29 @@
       const loopLimit = parseInt(document.getElementById('loopCount').value) || 0;
       const delaySec = parseFloat(document.getElementById('stepDelay').value) || 1;
 
-      addLog(`▶️ 시나리오 시작 (대기: ${delaySec}초, 반복: ${loopLimit === 0 ? '무한' : loopLimit + '회'})`);
+      addLog(`▶️ 매크로 시작`);
 
       while (isRunning) {
         currentLoop++;
-        addLog(`=== [회차 ${currentLoop}] 구간 시작 ===`);
+        addLog(`=== [회차 ${currentLoop}] 시작 ===`);
 
         for (let i = 0; i < steps.length; i++) {
           if (!isRunning) break;
 
           highlightStepUI(i);
-          const step = steps[i];
-
-          await executeStep(step);
-
-          // 스텝 간 대기
+          await executeStep(steps[i]);
           await sleep(delaySec * 1000);
           unhighlightStepUI(i);
         }
 
         if (loopLimit > 0 && currentLoop >= loopLimit) {
-          addLog(`✅ 설정한 반복 횟수(${loopLimit}회)가 완료되었습니다.`);
+          addLog(`✅ 반복 완료 (${loopLimit}회)`);
           stopScenario();
           break;
         }
       }
     }
 
-    // 개별 스텝 실행
     async function executeStep(step) {
       const iframe = document.getElementById('siteIframe');
 
@@ -530,7 +563,7 @@
             targetEl.click();
             addLog(`🎯 클릭 완료: (${coords.x}px, ${coords.y}px)`);
           } else {
-            addLog(`⚠️ 클릭 실패: 좌표에 클릭 가능한 엘리먼트 없음`);
+            addLog(`⚠️ 클릭 대상 없음`);
           }
 
           setTimeout(() => {
@@ -538,26 +571,24 @@
           }, 300);
 
         } else if (step.type === 'scroll') {
-          const scrollAmount = step.direction === 'down' ? 400 : -400;
-          iframeWin.scrollBy({ top: scrollAmount, behavior: 'smooth' });
-          addLog(`📜 스크롤 실행: ${step.direction === 'down' ? '아래로' : '위로'}`);
+          const amount = step.direction === 'down' ? step.distance : -step.distance;
+          iframeWin.scrollBy({ top: amount, behavior: 'smooth' });
+          addLog(`📜 스크롤 완료 (${amount}px)`);
         }
       } catch (err) {
-        addLog(`❌ CORS 오류: 타 도메인의 iframe 내부 제어가 거부되었습니다.`);
+        addLog(`❌ CORS 오류: 타 도메인 접근 불가`);
         stopScenario();
       }
     }
 
-    // 중지
     function stopScenario() {
       isRunning = false;
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
       document.querySelectorAll('.step-item').forEach(el => el.classList.remove('executing'));
-      addLog('⏹ 매크로가 중지되었습니다.');
+      addLog('⏹ 매크로 중지됨');
     }
 
-    // UI 하이라이트
     function highlightStepUI(index) {
       const item = document.getElementById(`step_ui_${index}`);
       if (item) item.classList.add('executing');
@@ -568,7 +599,6 @@
       if (item) item.classList.remove('executing');
     }
 
-    // 유틸리티
     function sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
