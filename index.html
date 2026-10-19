@@ -29,7 +29,7 @@
       flex-direction: column;
       background-color: #ffffff;
       position: relative;
-      min-width: 300px;
+      min-width: 250px;
     }
 
     .url-bar-container {
@@ -80,11 +80,16 @@
       border: none;
     }
 
-    /* 드래그 가능한 클릭 타겟 아이콘 (사이즈 축소: 18px) */
+    /* 드래그 중 iframe 마우스 흡수 방지용 CSS 클래스 */
+    .disable-iframe-events iframe {
+      pointer-events: none !important;
+    }
+
+    /* 드래그 가능한 클릭 타겟 아이콘 (18px) */
     .target-pin {
       position: absolute;
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       background-color: #cf222e;
       color: white;
       border: 2px solid #ffffff;
@@ -94,36 +99,46 @@
       justify-content: center;
       font-weight: bold;
       font-size: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-      cursor: grab;
-      z-index: 100;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      cursor: move; /* 이동 커서 */
+      z-index: 1000;
       transform: translate(-50%, -50%);
-      transition: transform 0.1s;
     }
 
-    .target-pin:active {
-      cursor: grabbing;
-      transform: translate(-50%, -50%) scale(1.3);
+    .target-pin:hover {
+      transform: translate(-50%, -50%) scale(1.2);
     }
 
     .target-pin.active-highlight {
       background-color: #2ea44f;
-      box-shadow: 0 0 0 5px rgba(46, 164, 79, 0.4);
+      box-shadow: 0 0 0 6px rgba(46, 164, 79, 0.4);
     }
 
     /* -----------------------------------
        경계선 드래그 리사이저 (Resizer)
     ----------------------------------- */
     .resizer {
-      width: 6px;
+      width: 8px;
       background-color: #e1e4e8;
       cursor: col-resize;
       transition: background-color 0.2s;
-      z-index: 200;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .resizer:hover, .resizer.dragging {
+    .resizer::after {
+      content: "||";
+      font-size: 10px;
+      color: #8c959f;
+    }
+
+    .resizer:hover, body.resizing .resizer {
       background-color: #0969da;
+    }
+    .resizer:hover::after, body.resizing .resizer::after {
+      color: white;
     }
 
     /* -----------------------------------
@@ -131,8 +146,8 @@
     ----------------------------------- */
     .right-panel {
       width: 360px;
-      min-width: 250px;
-      max-width: 600px;
+      min-width: 260px;
+      max-width: 700px;
       background-color: #ffffff;
       display: flex;
       flex-direction: column;
@@ -178,12 +193,11 @@
       border-radius: 4px;
     }
 
-    /* 시나리오 스텝 리스트 */
     .step-list {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-height: 200px;
+      max-height: 180px;
       overflow-y: auto;
       border: 1px solid #e1e4e8;
       border-radius: 6px;
@@ -270,7 +284,7 @@
 </head>
 <body>
 
-  <!-- 왼쪽: URL 및 Iframe & 타겟 핀 레이어 -->
+  <!-- 왼쪽: URL 및 Iframe 영역 -->
   <div class="left-panel">
     <div class="url-bar-container">
       <input type="text" id="urlInput" class="url-input" placeholder="https://example.com" value="https://example.com">
@@ -281,21 +295,20 @@
     </div>
   </div>
 
-  <!-- 경계선 드래그 리사이저 -->
+  <!-- 좌우 경계선 (패널 크기 조절용) -->
   <div class="resizer" id="resizer"></div>
 
-  <!-- 오른쪽: 매크로 조작 패널 -->
+  <!-- 오른쪽: 조작 패널 -->
   <div class="right-panel" id="rightPanel">
     <h2 class="panel-title">매크로 조작 패널</h2>
 
-    <!-- 액션 추가 버튼 목록 -->
+    <!-- 액션 추가 버튼 -->
     <div class="control-group">
       <div class="section-title">액션 추가</div>
-      <button class="btn-sm" style="width:100%; margin-bottom: 4px;" onclick="addClickPin()">🎯 클릭 타겟 추가</button>
+      <button class="btn-sm" style="width:100%; margin-bottom: 4px;" onclick="addClickPin()">🎯 클릭 타겟 아이콘 추가</button>
       
-      <!-- 휠 스크롤 거리 설정 추가 -->
       <div class="input-group">
-        <input type="number" id="scrollDistance" class="input-field" value="300" placeholder="스크롤 픽셀(px)">
+        <input type="number" id="scrollDistance" class="input-field" value="300" placeholder="스크롤 px">
         <button class="btn-sm" style="flex:1;" onclick="addScrollStep('down')">📜 휠 내리기</button>
         <button class="btn-sm" style="flex:1;" onclick="addScrollStep('up')">📜 휠 올리기</button>
       </div>
@@ -307,9 +320,7 @@
         <span>시나리오 순서</span>
         <button class="btn-sm" onclick="clearSteps()">전체 삭제</button>
       </div>
-      <div id="stepList" class="step-list">
-        <!-- 순서별 스텝 생성 -->
-      </div>
+      <div id="stepList" class="step-list"></div>
     </div>
 
     <!-- 반복 및 대기 설정 -->
@@ -327,21 +338,20 @@
       </div>
     </div>
 
-    <!-- 실행 제어 버튼 -->
+    <!-- 제어 버튼 -->
     <div class="input-group">
       <button id="startBtn" class="btn-action btn-start" style="flex:1;" onclick="startScenario()">시나리오 시작</button>
       <button id="stopBtn" class="btn-action btn-stop" style="flex:1;" onclick="stopScenario()" disabled>중지</button>
     </div>
 
-    <!-- 로그 출력 -->
+    <!-- 로그 -->
     <div class="control-group">
       <span class="section-title">실행 로그</span>
       <div id="logArea" class="log-box">> 대기 중...</div>
     </div>
 
-    <!-- 안내 사항 -->
     <div class="notice-box">
-      📌 <b>패널 크기 조정:</b> 좌우 경계선을 드래그하여 패널 너비를 조절할 수 있습니다.
+      💡 <b>안내:</b> 타겟 핀 아이콘을 마우스로 자유롭게 잡아서 원하는 곳으로 옮기세요. 경계선(||)을 잡고 끌면 패널 크기가 변경됩니다.
     </div>
   </div>
 
@@ -368,7 +378,7 @@
       if (e.key === 'Enter') loadUrl();
     });
 
-    // 클릭 타겟 핀 추가 (크기 축소: 18px)
+    // 클릭 타겟 핀 추가
     function addClickPin() {
       pinCounter++;
       const pinId = 'pin_' + pinCounter;
@@ -378,11 +388,12 @@
       pin.className = 'target-pin';
       pin.id = pinId;
       pin.innerText = pinCounter;
-      pin.style.left = '80px';
-      pin.style.top = '80px';
+      pin.style.left = '100px';
+      pin.style.top = '100px';
       wrapper.appendChild(pin);
 
-      makeDraggable(pin);
+      // 드래그 기능 연결
+      enablePinDrag(pin);
 
       steps.push({
         id: pinId,
@@ -397,10 +408,74 @@
       });
 
       renderSteps();
-      addLog(`핀 #${pinCounter} 생성됨 (드래그하여 배치)`);
+      addLog(`핀 #${pinCounter} 생성됨 (마우스로 잡고 이동 가능)`);
     }
 
-    // 마우스 휠 스크롤 스텝 추가 (픽셀 거리 지정)
+    // [핵심 수정] 핀 드래그 기능 (iframe 이벤트 간섭 완벽 차단)
+    function enablePinDrag(element) {
+      let active = false;
+
+      element.addEventListener('mousedown', (e) => {
+        active = true;
+        // 드래그 중 iframe이 마우스 이벤트를 뺏지 못하도록 차단
+        document.body.classList.add('disable-iframe-events');
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!active) return;
+        const wrapper = document.getElementById('iframeWrapper');
+        const rect = wrapper.getBoundingClientRect();
+
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        // 경계 제한
+        x = Math.max(10, Math.min(x, rect.width - 10));
+        y = Math.max(10, Math.min(y, rect.height - 10));
+
+        element.style.left = x + 'px';
+        element.style.top = y + 'px';
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (active) {
+          active = false;
+          // 드래그 종료 후 iframe 차단 해제
+          document.body.classList.remove('disable-iframe-events');
+        }
+      });
+    }
+
+    // [핵심 수정] 좌우 패널 크기 조절 Resizer
+    const resizer = document.getElementById('resizer');
+    const rightPanel = document.getElementById('rightPanel');
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      document.body.classList.add('resizing');
+      document.body.classList.add('disable-iframe-events'); // iframe 간섭 차단
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth >= 200 && newWidth <= 700) {
+        rightPanel.style.width = newWidth + 'px';
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.classList.remove('resizing');
+        document.body.classList.remove('disable-iframe-events');
+      }
+    });
+
+    // 휠 스크롤 스텝 추가
     function addScrollStep(direction) {
       const distInput = document.getElementById('scrollDistance');
       const distance = parseInt(distInput.value) || 300;
@@ -416,65 +491,13 @@
       addLog(`스크롤 추가: ${name}`);
     }
 
-    // 핀 드래그 기능
-    function makeDraggable(element) {
-      let isDragging = false;
-
-      element.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        e.stopPropagation();
-      });
-
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const wrapper = document.getElementById('iframeWrapper');
-        const rect = wrapper.getBoundingClientRect();
-
-        let x = e.clientX - rect.left;
-        let y = e.clientY - rect.top;
-
-        x = Math.max(5, Math.min(x, rect.width - 5));
-        y = Math.max(5, Math.min(y, rect.height - 5));
-
-        element.style.left = x + 'px';
-        element.style.top = y + 'px';
-      });
-
-      document.addEventListener('mouseup', () => {
-        isDragging = false;
-      });
-    }
-
-    // 좌우 경계선 크기 조절 (Resizer)
-    const resizer = document.getElementById('resizer');
-    const rightPanel = document.getElementById('rightPanel');
-    let isResizing = false;
-
-    resizer.addEventListener('mousedown', (e) => {
-      isResizing = true;
-      resizer.classList.add('dragging');
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isResizing) return;
-      const newWidth = window.innerWidth - e.clientX;
-      if (newWidth > 200 && newWidth < 600) {
-        rightPanel.style.width = newWidth + 'px';
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      isResizing = false;
-      resizer.classList.remove('dragging');
-    });
-
     // 스텝 UI 렌더링
     function renderSteps() {
       const listEl = document.getElementById('stepList');
       listEl.innerHTML = '';
 
       if (steps.length === 0) {
-        listEl.innerHTML = '<div style="font-size:11px; color:#8c959f; text-align:center; padding:8px;">액션이 없습니다.</div>';
+        listEl.innerHTML = '<div style="font-size:11px; color:#8c959f; text-align:center; padding:8px;">등록된 액션이 없습니다.</div>';
         return;
       }
 
@@ -523,7 +546,7 @@
       const loopLimit = parseInt(document.getElementById('loopCount').value) || 0;
       const delaySec = parseFloat(document.getElementById('stepDelay').value) || 1;
 
-      addLog(`▶️ 매크로 시작`);
+      addLog(`▶️ 시나리오 시작`);
 
       while (isRunning) {
         currentLoop++;
