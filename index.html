@@ -80,12 +80,21 @@
       border: none;
     }
 
-    /* 드래그 중 iframe 마우스 흡수 방지용 CSS 클래스 */
-    .disable-iframe-events iframe {
-      pointer-events: none !important;
+    /* 드래그 시 iframe 마우스 차단 오버레이 */
+    .drag-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 9999;
+      display: none;
+    }
+    body.is-dragging .drag-overlay {
+      display: block;
     }
 
-    /* 드래그 가능한 클릭 타겟 아이콘 (18px) */
+    /* 드래그 가능한 클릭 타겟 아이콘 */
     .target-pin {
       position: absolute;
       width: 20px;
@@ -100,13 +109,13 @@
       font-weight: bold;
       font-size: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-      cursor: move; /* 이동 커서 */
-      z-index: 1000;
+      cursor: grab;
+      z-index: 10000;
       transform: translate(-50%, -50%);
     }
 
-    .target-pin:hover {
-      transform: translate(-50%, -50%) scale(1.2);
+    .target-pin:active {
+      cursor: grabbing;
     }
 
     .target-pin.active-highlight {
@@ -134,10 +143,10 @@
       color: #8c959f;
     }
 
-    .resizer:hover, body.resizing .resizer {
+    .resizer:hover, body.is-resizing .resizer {
       background-color: #0969da;
     }
-    .resizer:hover::after, body.resizing .resizer::after {
+    .resizer:hover::after, body.is-resizing .resizer::after {
       color: white;
     }
 
@@ -291,6 +300,7 @@
       <button class="btn" onclick="loadUrl()">이동</button>
     </div>
     <div class="iframe-wrapper" id="iframeWrapper">
+      <div class="drag-overlay" id="dragOverlay"></div>
       <iframe id="siteIframe" src="https://example.com"></iframe>
     </div>
   </div>
@@ -351,7 +361,7 @@
     </div>
 
     <div class="notice-box">
-      💡 <b>안내:</b> 타겟 핀 아이콘을 마우스로 자유롭게 잡아서 원하는 곳으로 옮기세요. 경계선(||)을 잡고 끌면 패널 크기가 변경됩니다.
+      💡 <b>팁:</b> 타겟 핀을 잡고 드래그하거나, 가운데 경계선(||)을 잡고 끌면 크기가 자유롭게 조절됩니다.
     </div>
   </div>
 
@@ -392,7 +402,6 @@
       pin.style.top = '100px';
       wrapper.appendChild(pin);
 
-      // 드래그 기능 연결
       enablePinDrag(pin);
 
       steps.push({
@@ -408,29 +417,27 @@
       });
 
       renderSteps();
-      addLog(`핀 #${pinCounter} 생성됨 (마우스로 잡고 이동 가능)`);
+      addLog(`핀 #${pinCounter} 생성됨`);
     }
 
-    // [핵심 수정] 핀 드래그 기능 (iframe 이벤트 간섭 완벽 차단)
+    // 완벽하게 동작하는 핀 드래그 로직 (오버레이 적용)
     function enablePinDrag(element) {
-      let active = false;
+      let isDragging = false;
 
       element.addEventListener('mousedown', (e) => {
-        active = true;
-        // 드래그 중 iframe이 마우스 이벤트를 뺏지 못하도록 차단
-        document.body.classList.add('disable-iframe-events');
-        e.preventDefault();
+        isDragging = true;
+        document.body.classList.add('is-dragging');
+        e.stopPropagation();
       });
 
       document.addEventListener('mousemove', (e) => {
-        if (!active) return;
+        if (!isDragging) return;
         const wrapper = document.getElementById('iframeWrapper');
         const rect = wrapper.getBoundingClientRect();
 
         let x = e.clientX - rect.left;
         let y = e.clientY - rect.top;
 
-        // 경계 제한
         x = Math.max(10, Math.min(x, rect.width - 10));
         y = Math.max(10, Math.min(y, rect.height - 10));
 
@@ -439,30 +446,29 @@
       });
 
       document.addEventListener('mouseup', () => {
-        if (active) {
-          active = false;
-          // 드래그 종료 후 iframe 차단 해제
-          document.body.classList.remove('disable-iframe-events');
+        if (isDragging) {
+          isDragging = false;
+          document.body.classList.remove('is-dragging');
         }
       });
     }
 
-    // [핵심 수정] 좌우 패널 크기 조절 Resizer
+    // 패널 크기 조절 리사이저 로직
     const resizer = document.getElementById('resizer');
     const rightPanel = document.getElementById('rightPanel');
     let isResizing = false;
 
     resizer.addEventListener('mousedown', (e) => {
       isResizing = true;
-      document.body.classList.add('resizing');
-      document.body.classList.add('disable-iframe-events'); // iframe 간섭 차단
+      document.body.classList.add('is-resizing');
+      document.body.classList.add('is-dragging'); // iframe 마우스 방해 차단 공유
       e.preventDefault();
     });
 
     document.addEventListener('mousemove', (e) => {
       if (!isResizing) return;
       const newWidth = window.innerWidth - e.clientX;
-      if (newWidth >= 200 && newWidth <= 700) {
+      if (newWidth >= 250 && newWidth <= 700) {
         rightPanel.style.width = newWidth + 'px';
       }
     });
@@ -470,8 +476,8 @@
     document.addEventListener('mouseup', () => {
       if (isResizing) {
         isResizing = false;
-        document.body.classList.remove('resizing');
-        document.body.classList.remove('disable-iframe-events');
+        document.body.classList.remove('is-resizing');
+        document.body.classList.remove('is-dragging');
       }
     });
 
